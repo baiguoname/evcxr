@@ -590,7 +590,7 @@ Panic detected. Here's some useful information if you're filing a bug report.
                         .run_then_get(input)
                         .map(|(std_out, report)| EvalOutputs::text_html(std_out, report))
                 }
-            )
+            ),
         ]
     }
 

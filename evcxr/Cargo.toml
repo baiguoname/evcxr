@@ -34,6 +34,7 @@ ra_ap_hir = "0.0.173"
 ra_ap_base_db = "0.0.173"
 ra_ap_syntax = "0.0.173"
 
+
 # ra_ap_ide = { package = "ide", path = "../../rust-analyzer/crates/ide"}
 # ra_ap_ide_db = { package = "ide-db", path = "../../rust-analyzer/crates/ide-db"}
 # ra_ap_project_model = { package = "project-model", path = "../../rust-analyzer/crates/project-model"}
@@ -53,6 +54,8 @@ triomphe = "0.1.8"
 
 pulldown-cmark = { version = "0.9.3", default-features = false, features = ["simd"] }
 tl = "0.7"
+html5ever = "0.26.0"
+markup5ever_rcdom = "*"
 
 [target.'cfg(all(unix, not(target_os = "freebsd")))'.dependencies]
 backtrace = "0.3.35"
