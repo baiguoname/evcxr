@@ -99,6 +99,7 @@ pub(crate) struct Config {
     /// The host target that we're compiling for. e.g. x86_64-unknown-linux-gnu
     pub(crate) target: String,
     pub(crate) allow_static_linking: bool,
+    pub(crate) build_envs: HashMap<String, String>,
     subprocess_path: PathBuf,
 }
 
@@ -236,10 +237,12 @@ impl Config {
             rustc_path,
             core_extern,
             target,
-            // Our dynamic linking code appears to cause linking to fail on mac.
-            allow_static_linking: cfg!(target_os = "macos"),
+            // Forcing dynamic linking causes hard-to-diagnose problems in some cases, so it's off
+            // by default.
+            allow_static_linking: true,
             subprocess_path,
             codegen_backend: None,
+            build_envs: Default::default(),
         })
     }
 
@@ -298,6 +301,7 @@ impl Config {
             .env("CARGO_TARGET_DIR", "target")
             .env("RUSTC", &self.rustc_path)
             .env("RUSTFLAGS", rustflags.join(" "))
+            .envs(&self.build_envs)
             .env(crate::module::CORE_EXTERN_ENV, &self.core_extern);
         if self.cache_bytes > 0 {
             command.env(crate::module::CACHE_ENABLED_ENV, "1");
@@ -765,7 +769,7 @@ impl EvalContext {
         self.child_process.process_handle()
     }
 
-    fn restart_child_process(&mut self) -> Result<(), Error> {
+    pub(crate) fn restart_child_process(&mut self) -> Result<(), Error> {
         self.committed_state.variable_states.clear();
         self.committed_state.stored_variable_states.clear();
         self.child_process = self.child_process.restart()?;
@@ -1085,7 +1089,10 @@ impl EvalContext {
                     if error.code() == Some("E0728") && !state.async_mode {
                         state.async_mode = true;
                         if !state.external_deps.contains_key("tokio") {
-                            state.add_dep("tokio", "\"1.20.1\"")?;
+                            state.add_dep(
+                                "tokio",
+                                "{version=\"1.34.0\", features=[\"rt\", \"rt-multi-thread\"]}",
+                            )?;
                             // Rewrite Cargo.toml, since the dependency will probably have been
                             // validated in the process of being added, which will have overwritten
                             // Cargo.toml
@@ -1447,6 +1454,12 @@ impl ContextState {
         Ok(())
     }
 
+    pub fn set_build_env(&mut self, key: &str, value: &str) {
+        self.config
+            .build_envs
+            .insert(key.to_owned(), value.to_owned());
+    }
+
     pub fn toolchain(&mut self) -> &str {
         &self.config.toolchain
     }
@@ -1740,7 +1753,6 @@ impl ContextState {
                 .add_all(user_code);
             if self.allow_question_mark {
                 user_code = CodeBlock::new()
-                    .generated("let _ =")
                     .add_all(user_code)
                     .generated("Ok::<(), EvcxrUserCodeError>(())");
             }
